@@ -7,31 +7,31 @@ namespace APICatalogo.Controllers;
 
 [Route("[controller]")]
 [ApiController]
-public class ProdutosController : ControllerBase
+public class CategoriasController : ControllerBase
 {
     private readonly AppDbContext _context;
 
-    public ProdutosController(AppDbContext context)
+    public CategoriasController(AppDbContext context)
     {
         _context = context;
     }
-    // O retorno ActionResult e importante para utilizar metodos como o NotFound(), Ok() e etc...
+    
     [HttpGet]
-    public ActionResult<IEnumerable<Produto>> Get()
+    public ActionResult<IEnumerable<Categoria>> Get()
     {
         try
         {
-            var produtos = _context.Produtos
+            var categorias = _context.Categorias
                 .Take(10)
                 .AsNoTracking()
                 .ToList();
 
-            if (produtos is null)
+            if (categorias is null)
             {
-                return NotFound("Produtos nao encontrados...");
+                return NotFound("Categorias nao encontradas...");
             }
         
-            return Ok(produtos);
+            return Ok(categorias);
         }
         catch (Exception)
         {
@@ -40,22 +40,21 @@ public class ProdutosController : ControllerBase
         }
     }
     
-    // Adicionando uma rota nomeada
-    [HttpGet("{id:int}", Name = "ObterProduto")]
-    public ActionResult<Produto> Get(int id)
+    [HttpGet("{id:int}", Name = "ObterCategoria")]
+    public ActionResult<Categoria> Get(int id)
     {
         try
         {
-            var produto = _context.Produtos
+            var categoria = _context.Categorias
                 .AsNoTracking()
-                .FirstOrDefault(p => p.ProdutoId == id);
+                .FirstOrDefault(c => c.CategoriaId == id);
 
-            if (produto is null)
+            if (categoria is null)
             {
-                return NotFound("Produto nao encontrado...");
+                return NotFound("Categoria nao encontrada...");
             }
         
-            return Ok(produto);
+            return Ok(categoria);
         }
         catch (Exception)
         {
@@ -64,41 +63,61 @@ public class ProdutosController : ControllerBase
         }
     }
 
-    [HttpPost]
-    public ActionResult Post(Produto produto)
+    [HttpGet("produtos")]
+    public ActionResult<IEnumerable<Categoria>> GetCategorias()
     {
         try
         {
-            if (produto is null)
+            var categoriasProdutos = _context.Categorias
+                .AsNoTracking()
+                .Include(p => p.Produtos)
+                .ToList();
+        
+            return Ok(categoriasProdutos);
+        }
+        catch (Exception)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, 
+                "Ocorreu um problema ao tratar sua solicitação");
+        }
+    }
+    
+    [HttpPost]
+    public ActionResult Post(Categoria categoria)
+    {
+        try
+        {
+            if (categoria is null)
             {
                 return BadRequest();
             }
-            _context.Produtos.Add(produto);
+        
+            _context.Categorias.Add(categoria);
         
             // O SaveChanges persiste os dados do contexto na tabela do Bd
             _context.SaveChanges();
         
             // Retorna 201 e aciona uma rota
-            return new CreatedAtRouteResult("ObterProduto", new { id = produto.ProdutoId }, produto);
+            return new CreatedAtRouteResult("ObterCategoria", new { id = categoria.CategoriaId }, categoria);
         }
-        catch (Exception)
+        catch (Exception e)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, 
                 "Ocorreu um problema ao tratar sua solicitação");
         }
     }
-
+    
     [HttpPut("{id:int}")]
-    public ActionResult Put(int id, Produto produto)
+    public ActionResult Put(int id, Categoria categoria)
     {
         try
         {
-            if (id != produto.ProdutoId)
+            if (id != categoria.CategoriaId)
             {
                 return BadRequest();
             }
 
-            _context.Entry(produto).State = EntityState.Modified;
+            _context.Entry(categoria).State = EntityState.Modified;
         
             _context.SaveChanges();
 
@@ -116,20 +135,18 @@ public class ProdutosController : ControllerBase
     {
         try
         {
-            var produto = _context.Produtos
-                .AsNoTracking()
-                .FirstOrDefault(p => p.ProdutoId == id);
+            var categoria = _context.Categorias.FirstOrDefault(c => c.CategoriaId == id);
 
-            if (produto is null)
+            if (categoria is null)
             {
-                return NotFound("Produto nao encontrado...");
+                return NotFound("Categoria nao encontrada...");
             }
         
-            _context.Produtos.Remove(produto);
+            _context.Categorias.Remove(categoria);
         
             _context.SaveChanges();
 
-            return Ok(produto);
+            return Ok(categoria);
         }
         catch (Exception)
         {
