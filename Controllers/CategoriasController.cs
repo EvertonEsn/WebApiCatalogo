@@ -1,5 +1,7 @@
 using APICatalogo.Context;
+using APICatalogo.Filters;
 using APICatalogo.Models;
+using APICatalogo.Repository.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,149 +11,84 @@ namespace APICatalogo.Controllers;
 [ApiController]
 public class CategoriasController : ControllerBase
 {
-    private readonly AppDbContext _context;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<CategoriasController> _logger;
 
-    public CategoriasController(AppDbContext context)
+    public CategoriasController(IUnitOfWork unitOfWork, ILogger<CategoriasController> logger)
     {
-        _context = context;
+        _logger = logger;
+        _unitOfWork = unitOfWork;
     }
     
     [HttpGet]
     public ActionResult<IEnumerable<Categoria>> Get()
     {
-        try
-        {
-            var categorias = _context.Categorias
-                .Take(10)
-                .AsNoTracking()
-                .ToList();
-
-            if (categorias is null)
-            {
-                return NotFound("Categorias nao encontradas...");
-            }
-        
-            return Ok(categorias);
-        }
-        catch (Exception)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, 
-                "Ocorreu um problema ao tratar sua solicitação");
-        }
+        var categorias = _unitOfWork.CategoriaRepository.GetAll();
+        return Ok(categorias);
     }
     
     [HttpGet("{id:int}", Name = "ObterCategoria")]
     public ActionResult<Categoria> Get(int id)
     {
-        try
-        {
-            var categoria = _context.Categorias
-                .AsNoTracking()
-                .FirstOrDefault(c => c.CategoriaId == id);
+        var categoria = _unitOfWork.CategoriaRepository.Get(c => c.CategoriaId == id);
 
-            if (categoria is null)
-            {
-                return NotFound("Categoria nao encontrada...");
-            }
-        
-            return Ok(categoria);
-        }
-        catch (Exception)
+        if (categoria is null)
         {
-            return StatusCode(StatusCodes.Status500InternalServerError, 
-                "Ocorreu um problema ao tratar sua solicitação");
+            _logger.LogWarning($"Categoria com id = {id} nao encontrada...");
+            return NotFound($"Categoria com id = {id} nao encontrada...");
         }
-    }
-
-    [HttpGet("produtos")]
-    public ActionResult<IEnumerable<Categoria>> GetCategorias()
-    {
-        try
-        {
-            var categoriasProdutos = _context.Categorias
-                .AsNoTracking()
-                .Include(p => p.Produtos)
-                .ToList();
-        
-            return Ok(categoriasProdutos);
-        }
-        catch (Exception)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, 
-                "Ocorreu um problema ao tratar sua solicitação");
-        }
+    
+        return Ok(categoria);
     }
     
     [HttpPost]
     public ActionResult Post(Categoria categoria)
     {
-        try
+        if (categoria is null)
         {
-            if (categoria is null)
-            {
-                return BadRequest();
-            }
-        
-            _context.Categorias.Add(categoria);
-        
-            // O SaveChanges persiste os dados do contexto na tabela do Bd
-            _context.SaveChanges();
-        
-            // Retorna 201 e aciona uma rota
-            return new CreatedAtRouteResult("ObterCategoria", new { id = categoria.CategoriaId }, categoria);
+            _logger.LogWarning($"Dados Invalidos...");
+            return BadRequest("Dados Invalidos...");
         }
-        catch (Exception e)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, 
-                "Ocorreu um problema ao tratar sua solicitação");
-        }
+    
+        var categoriaCriada = _unitOfWork.CategoriaRepository.Create(categoria);
+        
+        _unitOfWork.Commit();
+        
+        // Retorna 201 e aciona uma rota
+        return new CreatedAtRouteResult("ObterCategoria", new { id = categoria.CategoriaId }, categoria);
     }
     
     [HttpPut("{id:int}")]
     public ActionResult Put(int id, Categoria categoria)
     {
-        try
+        if (id != categoria.CategoriaId)
         {
-            if (id != categoria.CategoriaId)
-            {
-                return BadRequest();
-            }
+            _logger.LogWarning($"Dados Invalidos...");
+            return BadRequest("Dados Invalidos...");
+        }
 
-            _context.Entry(categoria).State = EntityState.Modified;
+        _unitOfWork.CategoriaRepository.Update(categoria);
         
-            _context.SaveChanges();
+        _unitOfWork.Commit();
 
-            return NoContent();
-        }
-        catch (Exception)
-        {
-            return StatusCode(StatusCodes.Status500InternalServerError, 
-                "Ocorreu um problema ao tratar sua solicitação");
-        }
+        return Ok(categoria);
     }
     
     [HttpDelete("{id:int}")]
     public ActionResult Delete(int id)
     {
-        try
-        {
-            var categoria = _context.Categorias.FirstOrDefault(c => c.CategoriaId == id);
+        var categoria = _unitOfWork.CategoriaRepository.Get(c => c.CategoriaId == id);
 
-            if (categoria is null)
-            {
-                return NotFound("Categoria nao encontrada...");
-            }
-        
-            _context.Categorias.Remove(categoria);
-        
-            _context.SaveChanges();
-
-            return Ok(categoria);
-        }
-        catch (Exception)
+        if (categoria is null)
         {
-            return StatusCode(StatusCodes.Status500InternalServerError, 
-                "Ocorreu um problema ao tratar sua solicitação");
+            _logger.LogWarning($"Categoria com id = {id} nao encontrada...");
+            return NotFound($"Categoria com id = {id} nao encontrada...");
         }
+    
+        var categoriaExcluida = _unitOfWork.CategoriaRepository.Delete(categoria);
+        
+        _unitOfWork.Commit();
+
+        return Ok(categoriaExcluida);
     }
 }
