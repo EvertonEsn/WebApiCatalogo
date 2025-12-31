@@ -1,4 +1,6 @@
 using APICatalogo.Context;
+using APICatalogo.DTOs;
+using APICatalogo.DTOs.Mapping;
 using APICatalogo.Filters;
 using APICatalogo.Models;
 using APICatalogo.Repository.Interfaces;
@@ -21,14 +23,17 @@ public class CategoriasController : ControllerBase
     }
     
     [HttpGet]
-    public ActionResult<IEnumerable<Categoria>> Get()
+    public ActionResult<IEnumerable<CategoriaDTO>> Get()
     {
         var categorias = _unitOfWork.CategoriaRepository.GetAll();
-        return Ok(categorias);
+
+        var categoriasDto = categorias.ToCategoriaDTOList();
+        
+        return Ok(categoriasDto);
     }
     
     [HttpGet("{id:int}", Name = "ObterCategoria")]
-    public ActionResult<Categoria> Get(int id)
+    public ActionResult<CategoriaDTO> Get(int id)
     {
         var categoria = _unitOfWork.CategoriaRepository.Get(c => c.CategoriaId == id);
 
@@ -37,45 +42,57 @@ public class CategoriasController : ControllerBase
             _logger.LogWarning($"Categoria com id = {id} nao encontrada...");
             return NotFound($"Categoria com id = {id} nao encontrada...");
         }
-    
-        return Ok(categoria);
+        
+        var categoriaDto =  categoria.ToCategoriaDTO();
+        
+        return Ok(categoriaDto);
     }
     
     [HttpPost]
-    public ActionResult Post(Categoria categoria)
+    public ActionResult<CategoriaDTO> Post(CategoriaDTO categoriaDto)
     {
-        if (categoria is null)
+        if (categoriaDto is null)
         {
             _logger.LogWarning($"Dados Invalidos...");
             return BadRequest("Dados Invalidos...");
         }
+
+        var categoria = categoriaDto.ToCategoria(); 
     
         var categoriaCriada = _unitOfWork.CategoriaRepository.Create(categoria);
+
+        var novaCategoriaDto = categoriaCriada.ToCategoriaDTO();
         
         _unitOfWork.Commit();
         
         // Retorna 201 e aciona uma rota
-        return new CreatedAtRouteResult("ObterCategoria", new { id = categoria.CategoriaId }, categoria);
+        return new CreatedAtRouteResult("ObterCategoria",
+            new { id = novaCategoriaDto.CategoriaId },
+            novaCategoriaDto);
     }
     
     [HttpPut("{id:int}")]
-    public ActionResult Put(int id, Categoria categoria)
+    public ActionResult<CategoriaDTO> Put(int id, CategoriaDTO categoriaDto)
     {
-        if (id != categoria.CategoriaId)
+        if (id != categoriaDto.CategoriaId)
         {
             _logger.LogWarning($"Dados Invalidos...");
             return BadRequest("Dados Invalidos...");
         }
+        
+        var categoria = categoriaDto.ToCategoria(); 
 
-        _unitOfWork.CategoriaRepository.Update(categoria);
+        var categoriaAtualizada = _unitOfWork.CategoriaRepository.Update(categoria);
         
         _unitOfWork.Commit();
+        
+        var categoriaAtualizadaDto = categoriaAtualizada.ToCategoriaDTO();
 
-        return Ok(categoria);
+        return Ok(categoriaAtualizadaDto);
     }
     
     [HttpDelete("{id:int}")]
-    public ActionResult Delete(int id)
+    public ActionResult<CategoriaDTO> Delete(int id)
     {
         var categoria = _unitOfWork.CategoriaRepository.Get(c => c.CategoriaId == id);
 
@@ -88,7 +105,9 @@ public class CategoriasController : ControllerBase
         var categoriaExcluida = _unitOfWork.CategoriaRepository.Delete(categoria);
         
         _unitOfWork.Commit();
+        
+        var categoriaExcluidaDto = categoriaExcluida.ToCategoriaDTO();
 
-        return Ok(categoriaExcluida);
+        return Ok(categoriaExcluidaDto);
     }
 }
