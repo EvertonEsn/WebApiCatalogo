@@ -3,9 +3,11 @@ using APICatalogo.DTOs;
 using APICatalogo.DTOs.Mapping;
 using APICatalogo.Filters;
 using APICatalogo.Models;
+using APICatalogo.Pagination;
 using APICatalogo.Repository.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json;
 
 namespace APICatalogo.Controllers;
 
@@ -21,21 +23,38 @@ public class CategoriasController : ControllerBase
         _logger = logger;
         _unitOfWork = unitOfWork;
     }
-    
-    [HttpGet]
-    public ActionResult<IEnumerable<CategoriaDTO>> Get()
-    {
-        var categorias = _unitOfWork.CategoriaRepository.GetAll();
 
+    private ActionResult<IEnumerable<CategoriaDTO>> ObterCategorias(PagedList<Categoria> categorias)
+    {
+        var metadados = new
+        {
+            categorias.TotalCount,
+            categorias.PageSize,
+            categorias.CurrentPage,
+            categorias.TotalPages,
+            categorias.HasNext,
+            categorias.HasPrevious
+        };
+     
         var categoriasDto = categorias.ToCategoriaDTOList();
+        
+        Response.Headers.Append("X-Pagination", JsonConvert.SerializeObject(metadados));
         
         return Ok(categoriasDto);
     }
     
-    [HttpGet("{id:int}", Name = "ObterCategoria")]
-    public ActionResult<CategoriaDTO> Get(int id)
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<CategoriaDTO>>> GetAll([FromQuery] CategoriasFiltroNome categoriasFiltro)
     {
-        var categoria = _unitOfWork.CategoriaRepository.Get(c => c.CategoriaId == id);
+        var categorias = await _unitOfWork.CategoriaRepository.GetCategoriasFiltroNomeAsync(categoriasFiltro);
+
+        return ObterCategorias(categorias);
+    }
+    
+    [HttpGet("{id:int}", Name = "ObterCategoria")]
+    public async Task<ActionResult<CategoriaDTO>> GetAsync(int id)
+    {
+        var categoria = await _unitOfWork.CategoriaRepository.GetAsync(c => c.CategoriaId == id);
 
         if (categoria is null)
         {
@@ -49,7 +68,7 @@ public class CategoriasController : ControllerBase
     }
     
     [HttpPost]
-    public ActionResult<CategoriaDTO> Post(CategoriaDTO categoriaDto)
+    public async Task<ActionResult<CategoriaDTO>> Post(CategoriaDTO categoriaDto)
     {
         if (categoriaDto is null)
         {
@@ -63,7 +82,7 @@ public class CategoriasController : ControllerBase
 
         var novaCategoriaDto = categoriaCriada.ToCategoriaDTO();
         
-        _unitOfWork.Commit();
+        await _unitOfWork.CommitAsync();
         
         // Retorna 201 e aciona uma rota
         return new CreatedAtRouteResult("ObterCategoria",
@@ -72,7 +91,7 @@ public class CategoriasController : ControllerBase
     }
     
     [HttpPut("{id:int}")]
-    public ActionResult<CategoriaDTO> Put(int id, CategoriaDTO categoriaDto)
+    public async Task<ActionResult<CategoriaDTO>> Put(int id, CategoriaDTO categoriaDto)
     {
         if (id != categoriaDto.CategoriaId)
         {
@@ -84,7 +103,7 @@ public class CategoriasController : ControllerBase
 
         var categoriaAtualizada = _unitOfWork.CategoriaRepository.Update(categoria);
         
-        _unitOfWork.Commit();
+        await _unitOfWork.CommitAsync();
         
         var categoriaAtualizadaDto = categoriaAtualizada.ToCategoriaDTO();
 
@@ -92,9 +111,9 @@ public class CategoriasController : ControllerBase
     }
     
     [HttpDelete("{id:int}")]
-    public ActionResult<CategoriaDTO> Delete(int id)
+    public async Task<ActionResult<CategoriaDTO>> Delete(int id)
     {
-        var categoria = _unitOfWork.CategoriaRepository.Get(c => c.CategoriaId == id);
+        var categoria = await _unitOfWork.CategoriaRepository.GetAsync(c => c.CategoriaId == id);
 
         if (categoria is null)
         {
@@ -104,7 +123,7 @@ public class CategoriasController : ControllerBase
     
         var categoriaExcluida = _unitOfWork.CategoriaRepository.Delete(categoria);
         
-        _unitOfWork.Commit();
+        await _unitOfWork.CommitAsync();
         
         var categoriaExcluidaDto = categoriaExcluida.ToCategoriaDTO();
 
