@@ -5,6 +5,7 @@ using APICatalogo.Filters;
 using APICatalogo.Models;
 using APICatalogo.Pagination;
 using APICatalogo.Repository.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
@@ -43,6 +44,7 @@ public class CategoriasController : ControllerBase
         return Ok(categoriasDto);
     }
     
+    [Authorize]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<CategoriaDTO>>> GetAll([FromQuery] CategoriasFiltroNome categoriasFiltro)
     {
@@ -111,6 +113,7 @@ public class CategoriasController : ControllerBase
     }
     
     [HttpDelete("{id:int}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<ActionResult<CategoriaDTO>> Delete(int id)
     {
         var categoria = await _unitOfWork.CategoriaRepository.GetAsync(c => c.CategoriaId == id);

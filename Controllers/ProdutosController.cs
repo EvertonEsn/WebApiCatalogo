@@ -4,6 +4,7 @@ using APICatalogo.Models;
 using APICatalogo.Pagination;
 using APICatalogo.Repository.Interfaces;
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -56,7 +57,7 @@ public class ProdutosController : ControllerBase
     }
 
     [HttpGet("produtos/{id}")]
-    public async Task<ActionResult<IEnumerable<ProdutoDTO>>> GetProdutosCategoria(int id, ProdutosParameters  produtosParams)
+    public async Task<ActionResult<IEnumerable<ProdutoDTO>>> GetProdutosCategoria(int id, [FromQuery] ProdutosParameters  produtosParams)
     {
         var produtos = await _unitOfWork.ProdutoRepository.GetProdutosPorCategoriaAsync(id, produtosParams);
         
@@ -81,6 +82,7 @@ public class ProdutosController : ControllerBase
     }
     
     // Adicionando uma rota nomeada
+    [Authorize(Policy = "UserOnly")]
     [HttpGet("{id:int}", Name = "ObterProduto")]
     public async Task<ActionResult<ProdutoDTO>> Get(int id)
     {
